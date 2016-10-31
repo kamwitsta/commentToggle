@@ -1,24 +1,12 @@
-" description:	a simple line-based commenting toggler
-"  maintainer:	kamil.stachowski@gmail.com
-"     license:	gpl 3+
-"     version:	0.2 (2008.11.11)
+" ----------------------------------------------------------------- "
+" name			commentToggle										"
+" description	A simple line-based comment toggler					"
+" author		kamil.stachowski@gmail.com							"
+" license		GPLv3+												"
+" version		0.3 (2016.11.01)									"
+" ----------------------------------------------------------------- "
 
-" changelog:
-"		0.3:
-"				added languages: cabal, r, tsv
-"		0.2:	2008.11.11
-"				improved whitespace handling
-"				added languages: apache, asterisk, c, cfg, clean, cmake, css, d, debcontrol, diff, dtml, euphoria, foxpro, groovy, grub, htmldjango, htmlm4, lex, lhaskell, lilo, make, natural, nemerle, objc, objcpp, ,plsql, rexx, sas, scala, sed, sieve, sgml, xf86conf, xhtml, xquery, xsd, yacc, xhtml (total 93)
-"		0.1:	2008.11.08
-"				initial version
-"
-" TODO: do sth about block comments
-" TODO: better guessing for undefined languages
-" TODO: add support for scheme's multiple ;'s
-
-
-
-" ===============================================================================================================================
+" = intro ===================================================================================== {{{ =
 
 " make sure the plugin hasn't been loaded yet and save something
 if exists("g:loaded_commentToggle") || &cp
@@ -27,8 +15,6 @@ endif
 let g:loaded_commentToggle = "v0.2"
 let s:cpoSave = &cpo
 set cpo&vim
-
-" -------------------------------------------------------------------------------------------------------------------------------
 
 " assign a shortcut
 if !hasmapto('<Plug>CommentToggle')
@@ -42,13 +28,10 @@ if !exists(":commentToggle")
 command -nargs=1 CommentToggle :call s:CommentToggle()
 endif
 
-" ===============================================================================================================================
+" ============================================================================================= }}} =
+" = functions ================================================================================= {{{ =
 
-" all languages are defined as a list with the comment opening string in position 0 and the closing string in position 1
-" languages which support single line comments simply have an empty string in position 1
-let s:commStrings = {"abap":['\*',''], "abc":['%',''], "ada":['--',''], "apache":['#',''], "asterisk":[';',''], "awk":['#',''], "basic":['rem',''], "bcpl":['//',''], "c":['//',''], "cabal":['--',''], "cecil":['--',''], "cfg":['#',''], "clean":['//',''], "cmake":['#',''], "cobol":['\*',''], "cpp":['//',''], "cs":['//',''], "css":['/\*','\*/'], "d":['//',''], "debcontrol":['#',''], "debsources":['#',''], "diff":['#',''], "dtml":['<!--','-->'], "dylan":['//',''], "e":['#',''], "eiffel":['--',''], "erlang":['%',''], "euphora":['--',''], "forth":['\',''], "fortan":['C ',''], "foxpro":['\*',''], "fs":['//',''], "groovy":['//',''], "grub":['#',''], "haskell":['--',''], "html":['<!--','-->'], "htmldjango":['<!--','-->'], "htmlm4":['<!--','-->'], "icon":['#',''], "io":['#',''], "j":['NB.',''], "java":['//',''], "javaScript":['//',''], "lex":['//',''], "lhaskell":['%',''], "lilo":['#',''], "lisp":[';',''], "logo":[';',''], "lua":['--',''], "make":['#',''], "matlab":['%',''], "maple":['#',''], "merd":['#',''], "mma":['(\*','\*)'], "modula3":['(\*','\*)'], "mumps":[';',''], "natural":['\*',''], "nemerle":['//',''], "objc":['//',''], "objcpp":['//',''], "ocaml":['(\*','\*)'], "oz":['%',''], "pascal":['{','}'], "perl":['#',''], "php":['//',''], "pike":['//',''], "pliant":['#',''], "plsql":['--',''], "postscr":['%',''], "prolog":['%',''], "python":['#',''], "r": ['#',''], "rebol":[';',''], "rexx":['/\*','\*/'], "ruby":['#',''], "sas":['/\*','\*/'], "sather":['--',''], "scala":['//',''], "scheme":[';',''], "sed":['#',''], "sgml":['<!--','-->'], "sh":['#',''], "sieve":['#',''], "simula":['--',''], "sql":['--',''], "st":['"','"'], "tcl":['#',''], "tex":['%',''], "tsv":['#',''], "vhdl":['--',''], "vim":['"',''], "xf86conf":['#',''], "xhtml":['<!--','-->'], "xml":['<!--','-->'], "xquery":['<!--','-->'], "xsd":['<!--','-->'], "yacc":['//',''], "yaml":['#',''], "ycp":['//',''], "yorick":['//',''], "tex_alt": ['%', ''], "tex_alt2": ['%', '']}
-
-" ===============================================================================================================================
+" - s:CommentCheckCommented ------------------------------------------------------------------- {{{ -
 
 " check if line aLineNr begins with string
 function! s:CommentCheckCommented(aLineNr, aCommStr)
@@ -56,42 +39,22 @@ function! s:CommentCheckCommented(aLineNr, aCommStr)
 	return match(getline(a:aLineNr), '^\s*' . a:aCommStr[0]) == ""
 endfunction
 
-" -------------------------------------------------------------------------------------------------------------------------------
-
-" find the comment string for syntax aSynCurr
-function! s:CommentCheckString(aSynCurr)
-	if has_key(s:commStrings, a:aSynCurr)
-		" if we have the comment strings for the current syntax defined, take those
-		return s:commStrings[a:aSynCurr]
-	else
-		" TODO:	doesn't work for all syntaxes
-		"	i don't know how to properly extract the comment string for the current syntax; &comments is probably not the way
-		" check &comments and extract the one without any flags; alas, it's not always the string we're looking for
-		let s:result = ""
-		for s:tmp in split(&comments, ",")
-			if s:tmp[0] == ":"
-				let s:result = s:tmp[1:-1]
-				break
-			endif
-		endfor
-		return [s:result, ""]
-	endif
-endfunction
-
-" -------------------------------------------------------------------------------------------------------------------------------
+" --------------------------------------------------------------------------------------------- }}} -
+" - s:CommentToggle --------------------------------------------------------------------------- {{{ -
 
 " the main part
-" 	finds the comment string for the current syntax, and if the current line is already commented;
-" 	if it is, it uncomments it; if it's not, it uncomments it
+" finds the comment string for the current syntax, and if the current line is already commented;
+" if it is, it uncomments it; if it's not, it uncomments it
 function! s:CommentToggle()
-	let s:commStr = s:CommentCheckString(&syntax)
+	let s:commStr = split(&commentstring, "%s", 1)
 	let s:commed = s:CommentCheckCommented(line("."), s:commStr)
 	if match(getline(line(".")), '\S') != -1						" no point commenting empty lines
 		call s:CommentToggleHelper(line("."), s:commStr, s:commed)
 	endif
 endfunction
 
-" -------------------------------------------------------------------------------------------------------------------------------
+" --------------------------------------------------------------------------------------------- }}} -
+" - s:CommentToggleHelper --------------------------------------------------------------------- {{{ -
 
 " toggles comment on line aLineNr with string aCommStr depending on whether the line is already commented (aCommed)
 function! s:CommentToggleHelper(aLineNr, aCommStr, aCommed)
@@ -108,9 +71,12 @@ function! s:CommentToggleHelper(aLineNr, aCommStr, aCommed)
 	call setline(a:aLineNr, substitute(getline(a:aLineNr), s:tmpToBeSubsted, s:tmpToSubst, ""))
 endfunction
 
+" --------------------------------------------------------------------------------------------- }}} -
 
-" ===============================================================================================================================
-
+" ============================================================================================= }}} =
+" = outro ===================================================================================== {{{ =
 
 let &cpo = s:cpoSave
 unlet s:cpoSave
+
+" ============================================================================================= }}} =
